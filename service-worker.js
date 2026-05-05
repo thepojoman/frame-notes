@@ -1,4 +1,4 @@
-const CACHE_NAME = "frame-notes-v1.0.3";
+const CACHE_NAME = "frame-notes-v1.0.5";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const APP_FILES = [
   "./app.js",
   "./manifest.webmanifest",
   "./icon.svg",
+  "./hero-photo.jpg",
 ];
 
 self.addEventListener("install", (event) => {

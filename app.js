@@ -1,5 +1,5 @@
-const APP_VERSION = "v1.0.3";
-const APP_UPDATED_AT = "2026-05-04 22:20 CT";
+const APP_VERSION = "v1.0.5";
+const APP_UPDATED_AT = "2026-05-05 00:20 CT";
 
 const state = {
   iso: 400,
@@ -8,6 +8,7 @@ const state = {
   longitude: null,
   place: "Manual",
   weatherCloudCover: null,
+  weatherUpdatedAt: null,
   recommendation: null,
   frames: JSON.parse(localStorage.getItem("frame-notes") || "[]"),
 };
@@ -38,11 +39,22 @@ const directionDegrees = {
   Northwest: 315,
 };
 
+const degreeDirections = [
+  "North",
+  "Northeast",
+  "East",
+  "Southeast",
+  "South",
+  "Southwest",
+  "West",
+  "Northwest",
+];
+
 const els = {
   timeNow: document.querySelector("#timeNow"),
   placeNow: document.querySelector("#placeNow"),
   cloudNow: document.querySelector("#cloudNow"),
-  facingNow: document.querySelector("#facingNow"),
+  weatherSource: document.querySelector("#weatherSource"),
   form: document.querySelector("#frameForm"),
   rollName: document.querySelector("#rollName"),
   frameNumber: document.querySelector("#frameNumber"),
@@ -60,6 +72,8 @@ const els = {
   exportCsv: document.querySelector("#exportCsv"),
   refreshConditions: document.querySelector("#refreshConditions"),
   recommendButton: document.querySelector("#recommendButton"),
+  useCompass: document.querySelector("#useCompass"),
+  compassStatus: document.querySelector("#compassStatus"),
   versionStamp: document.querySelector("#versionStamp"),
 };
 
@@ -82,6 +96,16 @@ function cloudLabel(value) {
   if (number < 65) return "Partly cloudy";
   if (number < 90) return "Mostly cloudy";
   return "Overcast";
+}
+
+function headingToDirection(degrees) {
+  const index = Math.round(normalizeAngle(degrees) / 45) % 8;
+  return degreeDirections[index];
+}
+
+function weatherSourceLabel() {
+  if (!state.weatherUpdatedAt) return "Manual";
+  return `Open-Meteo ${currentTime24(state.weatherUpdatedAt)}`;
 }
 
 function normalizeAngle(degrees) {
@@ -294,7 +318,7 @@ function shutterNeedsSupport(shutterLabel) {
 function renderStatus() {
   els.placeNow.textContent = state.place;
   els.cloudNow.textContent = state.weatherCloudCover === null ? cloudLabel(els.cloudCover.value) : `${cloudLabel(state.weatherCloudCover)} ${state.weatherCloudCover}%`;
-  els.facingNow.textContent = els.direction.value;
+  els.weatherSource.textContent = weatherSourceLabel();
 }
 
 function renderFrames() {
@@ -333,6 +357,8 @@ async function refreshConditions() {
   els.placeNow.textContent = "Locating";
   if (!navigator.geolocation) {
     state.place = "Manual";
+    state.weatherCloudCover = null;
+    state.weatherUpdatedAt = null;
     renderStatus();
     return;
   }
@@ -349,10 +375,12 @@ async function refreshConditions() {
         const data = await response.json();
         if (typeof data.current?.cloud_cover === "number") {
           state.weatherCloudCover = data.current.cloud_cover;
+          state.weatherUpdatedAt = data.current.time ? new Date(data.current.time) : new Date();
           els.cloudCover.value = String(nearestCloudOption(state.weatherCloudCover));
         }
       } catch {
         state.weatherCloudCover = null;
+        state.weatherUpdatedAt = null;
       }
 
       renderStatus();
@@ -361,11 +389,57 @@ async function refreshConditions() {
     () => {
       state.place = "Manual";
       state.weatherCloudCover = null;
+      state.weatherUpdatedAt = null;
       renderStatus();
       calculateRecommendation();
     },
     { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 },
   );
+}
+
+async function useCompassHeading() {
+  if (!window.DeviceOrientationEvent) {
+    els.compassStatus.textContent = "Compass is not available in this browser.";
+    return;
+  }
+
+  if (typeof DeviceOrientationEvent.requestPermission === "function") {
+    try {
+      const permission = await DeviceOrientationEvent.requestPermission();
+      if (permission !== "granted") {
+        els.compassStatus.textContent = "Compass permission was not granted.";
+        return;
+      }
+    } catch {
+      els.compassStatus.textContent = "Compass permission could not be requested.";
+      return;
+    }
+  }
+
+  els.compassStatus.textContent = "Point your phone, then hold still.";
+
+  const handleOrientation = (event) => {
+    const heading =
+      typeof event.webkitCompassHeading === "number"
+        ? event.webkitCompassHeading
+        : typeof event.alpha === "number"
+          ? 360 - event.alpha
+          : null;
+
+    if (heading === null) {
+      els.compassStatus.textContent = "Compass heading is unavailable.";
+      return;
+    }
+
+    const direction = headingToDirection(heading);
+    els.direction.value = direction;
+    els.compassStatus.textContent = `${Math.round(heading)}° ${direction}`;
+    renderStatus();
+    calculateRecommendation();
+    window.removeEventListener("deviceorientation", handleOrientation);
+  };
+
+  window.addEventListener("deviceorientation", handleOrientation, { once: true });
 }
 
 function nearestCloudOption(value) {
@@ -461,6 +535,7 @@ function bindEvents() {
   els.exportCsv.addEventListener("click", exportCsv);
   els.refreshConditions.addEventListener("click", refreshConditions);
   els.recommendButton.addEventListener("click", calculateRecommendation);
+  els.useCompass.addEventListener("click", useCompassHeading);
   els.direction.addEventListener("change", () => {
     renderStatus();
     calculateRecommendation();

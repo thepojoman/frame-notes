@@ -40,8 +40,8 @@
             <strong id="cloudNow">Set below</strong>
           </div>
           <div>
-            <span>Facing</span>
-            <strong id="facingNow">North</strong>
+            <span>Weather</span>
+            <strong id="weatherSource">Manual</strong>
           </div>
         </div>
 
@@ -74,19 +74,25 @@
             </div>
           </fieldset>
 
-          <label>
-            Direction facing
-            <select id="direction" name="direction">
-              <option>North</option>
-              <option>Northeast</option>
-              <option>East</option>
-              <option>Southeast</option>
-              <option>South</option>
-              <option>Southwest</option>
-              <option>West</option>
-              <option>Northwest</option>
-            </select>
-          </label>
+          <div class="field-with-tool">
+            <label for="direction">
+              Direction facing
+            </label>
+            <div class="input-row">
+              <select id="direction" name="direction">
+                <option>North</option>
+                <option>Northeast</option>
+                <option>East</option>
+                <option>Southeast</option>
+                <option>South</option>
+                <option>Southwest</option>
+                <option>West</option>
+                <option>Northwest</option>
+              </select>
+              <button class="tool-button" id="useCompass" type="button" title="Use iPhone compass heading" aria-label="Use iPhone compass heading">⌖</button>
+            </div>
+            <p class="field-help" id="compassStatus">Select manually or use compass.</p>
+          </div>
 
           <label>
             Cloud coverage
@@ -146,11 +152,8 @@
       </section>
 
       <section class="recommendation-panel" aria-labelledby="recommendation-title">
-        <div class="meter-visual" aria-hidden="true">
-          <div class="sun-disc"></div>
-          <div class="aperture-blades">
-            <span></span><span></span><span></span><span></span><span></span><span></span>
-          </div>
+        <div class="meter-visual">
+          <img src="./hero-photo.jpg" alt="Golden film photograph over water at sunset" />
         </div>
 
         <div class="recommendation-copy">

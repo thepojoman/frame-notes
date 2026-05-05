@@ -1,5 +1,5 @@
-const APP_VERSION = "v1.0.5";
-const APP_UPDATED_AT = "2026-05-05 00:20 CT";
+const APP_VERSION = "v1.0.6";
+const APP_UPDATED_AT = "2026-05-05 00:35 CT";
 
 const state = {
   iso: 400,
@@ -50,6 +50,23 @@ const degreeDirections = [
   "Northwest",
 ];
 
+const exportHeaders = [
+  "date",
+  "time",
+  "rollName",
+  "frameNumber",
+  "iso",
+  "filmType",
+  "direction",
+  "cloudLabel",
+  "place",
+  "apertureUsed",
+  "shutterUsed",
+  "recommendedAperture",
+  "recommendedShutter",
+  "notes",
+];
+
 const els = {
   timeNow: document.querySelector("#timeNow"),
   placeNow: document.querySelector("#placeNow"),
@@ -69,6 +86,7 @@ const els = {
   quickOptions: document.querySelector("#quickOptions"),
   frameLog: document.querySelector("#frameLog"),
   emptyState: document.querySelector("#emptyState"),
+  exportExcel: document.querySelector("#exportExcel"),
   exportCsv: document.querySelector("#exportCsv"),
   refreshConditions: document.querySelector("#refreshConditions"),
   recommendButton: document.querySelector("#recommendButton"),
@@ -482,25 +500,9 @@ function saveFrame(event) {
 }
 
 function exportCsv() {
-  const headers = [
-    "date",
-    "time",
-    "rollName",
-    "frameNumber",
-    "iso",
-    "filmType",
-    "direction",
-    "cloudLabel",
-    "place",
-    "apertureUsed",
-    "shutterUsed",
-    "recommendedAperture",
-    "recommendedShutter",
-    "notes",
-  ];
-  const rows = [headers.join(",")].concat(
+  const rows = [exportHeaders.join(",")].concat(
     state.frames.map((frame) =>
-      headers
+      exportHeaders
         .map((header) => {
           const value = String(frame[header] ?? "");
           return `"${value.replace(/"/g, '""')}"`;
@@ -512,6 +514,41 @@ function exportCsv() {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = "frame-notes.csv";
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function exportExcel() {
+  const headerCells = exportHeaders.map((header) => `<th>${escapeHtml(header)}</th>`).join("");
+  const rows = state.frames
+    .map((frame) => {
+      const cells = exportHeaders
+        .map((header) => `<td>${escapeHtml(frame[header] ?? "")}</td>`)
+        .join("");
+      return `<tr>${cells}</tr>`;
+    })
+    .join("");
+  const workbook = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      table { border-collapse: collapse; font-family: Arial, sans-serif; }
+      th, td { border: 1px solid #999; padding: 6px 8px; vertical-align: top; }
+      th { background: #d9ead3; font-weight: bold; }
+    </style>
+  </head>
+  <body>
+    <table>
+      <thead><tr>${headerCells}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </body>
+</html>`;
+  const blob = new Blob([workbook], { type: "application/vnd.ms-excel" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "frame-notes.xls";
   link.click();
   URL.revokeObjectURL(link.href);
 }
@@ -532,6 +569,7 @@ function setupSegmentedControls() {
 
 function bindEvents() {
   els.form.addEventListener("submit", saveFrame);
+  els.exportExcel.addEventListener("click", exportExcel);
   els.exportCsv.addEventListener("click", exportCsv);
   els.refreshConditions.addEventListener("click", refreshConditions);
   els.recommendButton.addEventListener("click", calculateRecommendation);

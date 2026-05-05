@@ -356,6 +356,13 @@ textarea {
   font-weight: 850;
 }
 
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .empty-state {
   margin-top: 16px;
   color: var(--muted);

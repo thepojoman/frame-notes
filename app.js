@@ -1,3 +1,6 @@
+const APP_VERSION = "v1.0.3";
+const APP_UPDATED_AT = "2026-05-04 22:20 CT";
+
 const state = {
   iso: 400,
   filmType: "Color",
@@ -57,6 +60,7 @@ const els = {
   exportCsv: document.querySelector("#exportCsv"),
   refreshConditions: document.querySelector("#refreshConditions"),
   recommendButton: document.querySelector("#recommendButton"),
+  versionStamp: document.querySelector("#versionStamp"),
 };
 
 function pad(value) {
@@ -468,8 +472,13 @@ function bindEvents() {
   });
 }
 
+function renderVersion() {
+  els.versionStamp.textContent = `${APP_VERSION} · updated ${APP_UPDATED_AT}`;
+}
+
 setupSegmentedControls();
 bindEvents();
+renderVersion();
 updateClock();
 setInterval(updateClock, 10000);
 renderStatus();

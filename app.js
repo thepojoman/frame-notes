@@ -96,7 +96,7 @@ function dayOfYear(date) {
 
 function solarPosition(date, latitude, longitude) {
   if (latitude === null || longitude === null) {
-    return { altitude: 45, azimuth: 180, estimated: true };
+    return fallbackSolarPosition(date);
   }
 
   const rad = Math.PI / 180;
@@ -119,7 +119,7 @@ function solarPosition(date, latitude, longitude) {
     0.002697 * Math.cos(3 * gamma) +
     0.00148 * Math.sin(3 * gamma);
 
-  const offset = equation + 4 * longitude - date.getTimezoneOffset();
+  const offset = equation + 4 * longitude + date.getTimezoneOffset();
   const trueSolarMinutes = hour * 60 + offset;
   const hourAngle = (trueSolarMinutes / 4 - 180) * rad;
   const latRad = latitude * rad;
@@ -136,6 +136,28 @@ function solarPosition(date, latitude, longitude) {
     180;
 
   return { altitude: altitude / rad, azimuth: normalizeAngle(azimuth), estimated: false };
+}
+
+function fallbackSolarPosition(date) {
+  const hour = date.getHours() + date.getMinutes() / 60;
+  let altitude = 45;
+  const azimuth = normalizeAngle(90 + (hour - 6) * 15);
+
+  if (hour < 5 || hour >= 21) {
+    altitude = -12;
+  } else if (hour < 7) {
+    altitude = -4 + (hour - 5) * 7;
+  } else if (hour < 10) {
+    altitude = 10 + (hour - 7) * 10;
+  } else if (hour < 15) {
+    altitude = 42;
+  } else if (hour < 18) {
+    altitude = 42 - (hour - 15) * 10;
+  } else {
+    altitude = 12 - (hour - 18) * 8;
+  }
+
+  return { altitude, azimuth, estimated: true };
 }
 
 function exposureAdjustment({ cloudCover, direction, date }) {
@@ -158,11 +180,15 @@ function exposureAdjustment({ cloudCover, direction, date }) {
   }
 
   const sun = solarPosition(date, state.latitude, state.longitude);
+  if (sun.estimated) {
+    reasons.push("time-based light estimate");
+  }
+
   if (sun.altitude < -4) {
-    stops += 6;
-    reasons.push("very low light");
+    stops += 10;
+    reasons.push("after dark or very low light");
   } else if (sun.altitude < 6) {
-    stops += 4;
+    stops += 5;
     reasons.push("twilight or sunrise/sunset");
   } else if (sun.altitude < 18) {
     stops += 2;
@@ -236,7 +262,9 @@ function renderRecommendation() {
   els.recommendedAperture.textContent = rec.aperture;
   els.recommendedShutter.textContent = rec.shutter;
   const reason = rec.reasons.length ? rec.reasons.join(", ") : "bright direct daylight";
-  els.recommendationReason.textContent = `ISO ${rec.iso} ${rec.filmType.toLowerCase()}, ${cloudLabel(rec.cloudCover).toLowerCase()}, ${reason}. Sun angle ${rec.sunAltitude}°, azimuth ${rec.sunAzimuth}°.`;
+  const estimateNote = rec.latitude === null || rec.longitude === null ? " Allow location for a more accurate sun angle." : "";
+  const supportNote = shutterNeedsSupport(rec.shutter) ? " Use a tripod, flash, or intentional motion blur at this speed." : "";
+  els.recommendationReason.textContent = `ISO ${rec.iso} ${rec.filmType.toLowerCase()}, ${cloudLabel(rec.cloudCover).toLowerCase()}, ${reason}. Sun angle ${rec.sunAltitude}°, azimuth ${rec.sunAzimuth}°.${supportNote}${estimateNote}`;
 
   els.quickOptions.innerHTML = "";
   rec.options.forEach((option) => {
@@ -250,6 +278,13 @@ function renderRecommendation() {
     });
     els.quickOptions.appendChild(chip);
   });
+}
+
+function shutterNeedsSupport(shutterLabel) {
+  if (shutterLabel === "Program") return false;
+  if (shutterLabel === "1") return true;
+  const denominator = Number(shutterLabel.split("/")[1]);
+  return denominator < 60;
 }
 
 function renderStatus() {

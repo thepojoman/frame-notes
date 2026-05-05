@@ -1,4 +1,4 @@
-const CACHE_NAME = "frame-notes-v1";
+const CACHE_NAME = "frame-notes-v3";
 const APP_FILES = [
   "./",
   "./index.html",

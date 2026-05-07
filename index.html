@@ -22,7 +22,7 @@
             <p class="version-stamp" id="versionStamp">Version loading</p>
           </div>
           <button class="icon-button" id="refreshConditions" type="button" title="Refresh location and weather" aria-label="Refresh location and weather">
-            <span aria-hidden="true">↻</span>
+            <span aria-hidden="true">&#8635;</span>
           </button>
         </div>
 
@@ -89,7 +89,7 @@
                 <option>West</option>
                 <option>Northwest</option>
               </select>
-              <button class="tool-button" id="useCompass" type="button" title="Use iPhone compass heading" aria-label="Use iPhone compass heading">⌖</button>
+              <button class="tool-button" id="useCompass" type="button" title="Use iPhone compass heading" aria-label="Use iPhone compass heading">&#8982;</button>
             </div>
             <p class="field-help" id="compassStatus">Select manually or use compass.</p>
           </div>
@@ -102,6 +102,24 @@
               <option value="50">Partly cloudy</option>
               <option value="75">Mostly cloudy</option>
               <option value="100">Overcast</option>
+            </select>
+          </label>
+
+          <label>
+            Environment
+            <select id="environment" name="environment">
+              <option>Outside / open sky</option>
+              <option>Outside, open shade</option>
+              <option>Outside, tree shade</option>
+              <option>Golden hour outside</option>
+              <option>Blue hour / dusk outside</option>
+              <option>Night street lights</option>
+              <option>Indoors, bright window light</option>
+              <option>Indoors, normal room light</option>
+              <option>Dark crowded bar</option>
+              <option>Concert / stage light</option>
+              <option>Museum / dim indoor</option>
+              <option>Bright water / beach / snow</option>
             </select>
           </label>
 

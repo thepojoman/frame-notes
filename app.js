@@ -1,5 +1,5 @@
-const APP_VERSION = "v1.0.6";
-const APP_UPDATED_AT = "2026-05-05 00:35 CT";
+const APP_VERSION = "v1.0.7";
+const APP_UPDATED_AT = "2026-05-06 19:14 CT";
 
 const state = {
   iso: 400,
@@ -50,6 +50,21 @@ const degreeDirections = [
   "Northwest",
 ];
 
+const environmentAdjustments = {
+  "Outside / open sky": { stops: 0, reason: "open outdoor scene", outdoor: true },
+  "Outside, open shade": { stops: 2, reason: "open shade", outdoor: true },
+  "Outside, tree shade": { stops: 3, reason: "tree shade", outdoor: true },
+  "Golden hour outside": { stops: 1.5, reason: "golden hour", outdoor: true },
+  "Blue hour / dusk outside": { stops: 4, reason: "blue hour or dusk", outdoor: true },
+  "Night street lights": { stops: 11, reason: "night street lighting", outdoor: false },
+  "Indoors, bright window light": { stops: 6, reason: "bright window light", outdoor: false },
+  "Indoors, normal room light": { stops: 9, reason: "normal indoor room light", outdoor: false },
+  "Dark crowded bar": { stops: 12, reason: "dark crowded bar", outdoor: false },
+  "Concert / stage light": { stops: 9, reason: "concert or stage light", outdoor: false },
+  "Museum / dim indoor": { stops: 10, reason: "dim indoor light", outdoor: false },
+  "Bright water / beach / snow": { stops: -1, reason: "bright reflective surroundings", outdoor: true },
+};
+
 const exportHeaders = [
   "date",
   "time",
@@ -57,6 +72,7 @@ const exportHeaders = [
   "frameNumber",
   "iso",
   "filmType",
+  "environment",
   "direction",
   "cloudLabel",
   "place",
@@ -77,6 +93,7 @@ const els = {
   frameNumber: document.querySelector("#frameNumber"),
   direction: document.querySelector("#direction"),
   cloudCover: document.querySelector("#cloudCover"),
+  environment: document.querySelector("#environment"),
   apertureUsed: document.querySelector("#apertureUsed"),
   shutterUsed: document.querySelector("#shutterUsed"),
   notes: document.querySelector("#notes"),
@@ -206,10 +223,16 @@ function fallbackSolarPosition(date) {
   return { altitude, azimuth, estimated: true };
 }
 
-function exposureAdjustment({ cloudCover, direction, date }) {
+function exposureAdjustment({ cloudCover, direction, environment, date }) {
   const cloud = Number(cloudCover);
-  let stops = 0;
-  const reasons = [];
+  const environmentInfo = environmentAdjustments[environment] || environmentAdjustments["Outside / open sky"];
+  let stops = environmentInfo.stops;
+  const reasons = [environmentInfo.reason];
+  const sun = solarPosition(date, state.latitude, state.longitude);
+
+  if (!environmentInfo.outdoor) {
+    return { stops: Math.max(-1, Math.min(13, stops)), reasons, sun };
+  }
 
   if (cloud >= 90) {
     stops += 4;
@@ -225,7 +248,6 @@ function exposureAdjustment({ cloudCover, direction, date }) {
     reasons.push("light cloud cover");
   }
 
-  const sun = solarPosition(date, state.latitude, state.longitude);
   if (sun.estimated) {
     reasons.push("time-based light estimate");
   }
@@ -253,7 +275,7 @@ function exposureAdjustment({ cloudCover, direction, date }) {
     }
   }
 
-  return { stops: Math.max(-1, Math.min(7, stops)), reasons, sun };
+  return { stops: Math.max(-1, Math.min(13, stops)), reasons, sun };
 }
 
 function settingsForEv(ev) {
@@ -275,7 +297,8 @@ function calculateRecommendation() {
   const date = new Date();
   const cloudCover = Number(els.cloudCover.value);
   const direction = els.direction.value;
-  const adjustment = exposureAdjustment({ cloudCover, direction, date });
+  const environment = els.environment.value;
+  const adjustment = exposureAdjustment({ cloudCover, direction, environment, date });
   const sunny16EvAtIso = 15 + Math.log2(state.iso / 100);
   const targetEv = sunny16EvAtIso - adjustment.stops;
   const options = settingsForEv(targetEv).slice(0, 5);
@@ -287,6 +310,7 @@ function calculateRecommendation() {
     aperture: `f/${preferred.aperture}`,
     shutter: preferred.shutter.label,
     cloudCover,
+    environment,
     direction,
     time: currentTime24(date),
     latitude: state.latitude,
@@ -308,16 +332,20 @@ function renderRecommendation() {
   els.recommendedAperture.textContent = rec.aperture;
   els.recommendedShutter.textContent = rec.shutter;
   const reason = rec.reasons.length ? rec.reasons.join(", ") : "bright direct daylight";
+  const environmentInfo = environmentAdjustments[rec.environment] || environmentAdjustments["Outside / open sky"];
+  const weatherNote = environmentInfo.outdoor
+    ? `${cloudLabel(rec.cloudCover).toLowerCase()}, ${rec.environment.toLowerCase()}`
+    : rec.environment.toLowerCase();
   const estimateNote = rec.latitude === null || rec.longitude === null ? " Allow location for a more accurate sun angle." : "";
   const supportNote = shutterNeedsSupport(rec.shutter) ? " Use a tripod, flash, or intentional motion blur at this speed." : "";
-  els.recommendationReason.textContent = `ISO ${rec.iso} ${rec.filmType.toLowerCase()}, ${cloudLabel(rec.cloudCover).toLowerCase()}, ${reason}. Sun angle ${rec.sunAltitude}°, azimuth ${rec.sunAzimuth}°.${supportNote}${estimateNote}`;
+  els.recommendationReason.textContent = `ISO ${rec.iso} ${rec.filmType.toLowerCase()}, ${weatherNote}, ${reason}. Sun angle ${rec.sunAltitude} deg, azimuth ${rec.sunAzimuth} deg.${supportNote}${estimateNote}`;
 
   els.quickOptions.innerHTML = "";
   rec.options.forEach((option) => {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "option-chip";
-    chip.textContent = `${option.aperture} · ${option.shutter}`;
+    chip.textContent = `${option.aperture} - ${option.shutter}`;
     chip.addEventListener("click", () => {
       els.apertureUsed.value = option.aperture;
       els.shutterUsed.value = option.shutter;
@@ -352,12 +380,12 @@ function renderFrames() {
       item.innerHTML = `
         <div>
           <strong>${escapeHtml(frame.rollName)} #${frame.frameNumber}</strong>
-          <span>${frame.date} ${frame.time} · ISO ${frame.iso} · ${escapeHtml(frame.filmType)}</span>
+          <span>${frame.date} ${frame.time} - ISO ${frame.iso} - ${escapeHtml(frame.filmType)}</span>
         </div>
         <dl>
           <div><dt>Used</dt><dd>${escapeHtml(frame.apertureUsed)} at ${escapeHtml(frame.shutterUsed)}</dd></div>
           <div><dt>Suggested</dt><dd>${escapeHtml(frame.recommendedAperture)} at ${escapeHtml(frame.recommendedShutter)}</dd></div>
-          <div><dt>Conditions</dt><dd>${escapeHtml(frame.direction)}, ${escapeHtml(frame.cloudLabel)}, ${escapeHtml(frame.place)}</dd></div>
+          <div><dt>Conditions</dt><dd>${escapeHtml(frame.environment || "Outside / open sky")}, ${escapeHtml(frame.direction)}, ${escapeHtml(frame.cloudLabel)}, ${escapeHtml(frame.place)}</dd></div>
         </dl>
         ${frame.notes ? `<p>${escapeHtml(frame.notes)}</p>` : ""}
       `;
@@ -451,7 +479,7 @@ async function useCompassHeading() {
 
     const direction = headingToDirection(heading);
     els.direction.value = direction;
-    els.compassStatus.textContent = `${Math.round(heading)}° ${direction}`;
+    els.compassStatus.textContent = `${Math.round(heading)} deg ${direction}`;
     renderStatus();
     calculateRecommendation();
     window.removeEventListener("deviceorientation", handleOrientation);
@@ -479,6 +507,7 @@ function saveFrame(event) {
     frameNumber: Number(els.frameNumber.value) || 1,
     iso: state.iso,
     filmType: state.filmType,
+    environment: els.environment.value,
     direction: els.direction.value,
     cloudCover: Number(els.cloudCover.value),
     cloudLabel: cloudLabel(els.cloudCover.value),
@@ -583,10 +612,11 @@ function bindEvents() {
     renderStatus();
     calculateRecommendation();
   });
+  els.environment.addEventListener("change", calculateRecommendation);
 }
 
 function renderVersion() {
-  els.versionStamp.textContent = `${APP_VERSION} · updated ${APP_UPDATED_AT}`;
+  els.versionStamp.textContent = `${APP_VERSION} - updated ${APP_UPDATED_AT}`;
 }
 
 setupSegmentedControls();

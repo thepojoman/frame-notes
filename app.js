@@ -1,5 +1,5 @@
-const APP_VERSION = "v1.0.8";
-const APP_UPDATED_AT = "2026-05-06 19:25 CT";
+const APP_VERSION = "v1.0.9";
+const APP_UPDATED_AT = "2026-05-06 19:30 CT";
 
 const state = {
   iso: 400,

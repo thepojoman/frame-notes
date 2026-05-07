@@ -252,7 +252,8 @@ textarea {
   background: var(--field);
 }
 
-.segmented[data-field="filmType"] {
+.segmented[data-field="filmType"],
+.segmented[data-field="flash"] {
   grid-template-columns: repeat(2, 1fr);
 }
 

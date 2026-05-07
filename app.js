@@ -1,9 +1,10 @@
-const APP_VERSION = "v1.0.7";
-const APP_UPDATED_AT = "2026-05-06 19:14 CT";
+const APP_VERSION = "v1.0.8";
+const APP_UPDATED_AT = "2026-05-06 19:25 CT";
 
 const state = {
   iso: 400,
   filmType: "Color",
+  flash: "No",
   latitude: null,
   longitude: null,
   place: "Manual",
@@ -73,6 +74,7 @@ const exportHeaders = [
   "iso",
   "filmType",
   "environment",
+  "flash",
   "direction",
   "cloudLabel",
   "place",
@@ -311,6 +313,7 @@ function calculateRecommendation() {
     shutter: preferred.shutter.label,
     cloudCover,
     environment,
+    flash: state.flash,
     direction,
     time: currentTime24(date),
     latitude: state.latitude,
@@ -338,7 +341,8 @@ function renderRecommendation() {
     : rec.environment.toLowerCase();
   const estimateNote = rec.latitude === null || rec.longitude === null ? " Allow location for a more accurate sun angle." : "";
   const supportNote = shutterNeedsSupport(rec.shutter) ? " Use a tripod, flash, or intentional motion blur at this speed." : "";
-  els.recommendationReason.textContent = `ISO ${rec.iso} ${rec.filmType.toLowerCase()}, ${weatherNote}, ${reason}. Sun angle ${rec.sunAltitude} deg, azimuth ${rec.sunAzimuth} deg.${supportNote}${estimateNote}`;
+  const flashNote = rec.flash === "Yes" ? " Flash selected; use the ambient setting as a background starting point." : "";
+  els.recommendationReason.textContent = `ISO ${rec.iso} ${rec.filmType.toLowerCase()}, ${weatherNote}, ${reason}. Sun angle ${rec.sunAltitude} deg, azimuth ${rec.sunAzimuth} deg.${supportNote}${flashNote}${estimateNote}`;
 
   els.quickOptions.innerHTML = "";
   rec.options.forEach((option) => {
@@ -385,7 +389,7 @@ function renderFrames() {
         <dl>
           <div><dt>Used</dt><dd>${escapeHtml(frame.apertureUsed)} at ${escapeHtml(frame.shutterUsed)}</dd></div>
           <div><dt>Suggested</dt><dd>${escapeHtml(frame.recommendedAperture)} at ${escapeHtml(frame.recommendedShutter)}</dd></div>
-          <div><dt>Conditions</dt><dd>${escapeHtml(frame.environment || "Outside / open sky")}, ${escapeHtml(frame.direction)}, ${escapeHtml(frame.cloudLabel)}, ${escapeHtml(frame.place)}</dd></div>
+          <div><dt>Conditions</dt><dd>${escapeHtml(frame.environment || "Outside / open sky")}, flash ${escapeHtml(frame.flash || "No")}, ${escapeHtml(frame.direction)}, ${escapeHtml(frame.cloudLabel)}, ${escapeHtml(frame.place)}</dd></div>
         </dl>
         ${frame.notes ? `<p>${escapeHtml(frame.notes)}</p>` : ""}
       `;
@@ -508,6 +512,7 @@ function saveFrame(event) {
     iso: state.iso,
     filmType: state.filmType,
     environment: els.environment.value,
+    flash: state.flash,
     direction: els.direction.value,
     cloudCover: Number(els.cloudCover.value),
     cloudLabel: cloudLabel(els.cloudCover.value),
@@ -591,6 +596,7 @@ function setupSegmentedControls() {
       button.classList.add("active");
       if (group.dataset.field === "iso") state.iso = Number(button.dataset.value);
       if (group.dataset.field === "filmType") state.filmType = button.dataset.value;
+      if (group.dataset.field === "flash") state.flash = button.dataset.value;
       calculateRecommendation();
     });
   });
